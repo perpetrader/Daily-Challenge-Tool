@@ -3518,10 +3518,20 @@ function renderPuzzleBoard() {
               onchange="event.stopPropagation();setBoardCardHp(${r},${c},this.value)"
               title="Health">`
           : '';
+        const isFriend = card && card.type === 1;
+        const glitchCheck = isFriend
+          ? `<label class="cell-glitch" onclick="event.stopPropagation()" title="Glitched">
+              <input type="checkbox" ${cell.glitched ? 'checked' : ''}
+                onclick="event.stopPropagation()"
+                onchange="event.stopPropagation();setBoardCardGlitched(${r},${c},this.checked)">
+              <span style="font-size:10px;">Glitch</span>
+            </label>`
+          : '';
         cellEl.innerHTML = `
           ${sprite}
           <span class="cell-card-name">${name}</span>
           <span class="cell-owner ${ownerCls}">${ownerLabel} ${hpInput}</span>
+          ${glitchCheck}
           <button class="cell-remove" onclick="event.stopPropagation();removeBoardCard(${r},${c})">&times;</button>
         `;
         cellEl.onclick = () => openBoardPicker(r, c);
@@ -3558,6 +3568,17 @@ function setBoardCardHp(row, col, value) {
     delete cell.hp; // default — no override needed
   } else {
     cell.hp = newHp;
+  }
+  updatePuzzleSQL();
+}
+
+function setBoardCardGlitched(row, col, glitched) {
+  const cell = puzzleState.board[row][col];
+  if (!cell) return;
+  if (glitched) {
+    cell.glitched = true;
+  } else {
+    delete cell.glitched;
   }
   updatePuzzleSQL();
 }
@@ -3838,8 +3859,12 @@ function generatePuzzleSQL() {
           Location: "Board"
         };
         const cd = CARD_DATA[cell.cardId];
-        if (cd && cd.hp > 0 && cell.hp !== undefined && cell.hp !== cd.hp) {
-          entry.Status = { CurrentHealth: cell.hp };
+        const hasHpOverride = cd && cd.hp > 0 && cell.hp !== undefined && cell.hp !== cd.hp;
+        const hasGlitch = cell.glitched;
+        if (hasHpOverride || hasGlitch) {
+          entry.Status = {};
+          if (hasHpOverride) entry.Status.CurrentHealth = cell.hp;
+          if (hasGlitch) entry.Status.IsGlitched = true;
         }
         startingCards.push(entry);
       }
