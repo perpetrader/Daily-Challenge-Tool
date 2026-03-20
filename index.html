@@ -1015,6 +1015,11 @@
     </div>
 
     <div class="control-group">
+      <label>Bot Starting Currency</label>
+      <input type="number" id="puzzleBotCurrency" value="0" min="0" max="50" oninput="updatePuzzleSQL()">
+    </div>
+
+    <div class="control-group">
       <label>Background</label>
       <input type="text" id="puzzleBackground" value="RRLocation15" oninput="updatePuzzleSQL()">
     </div>
@@ -3766,6 +3771,7 @@ function generatePuzzleSQL() {
   const playerScore = parseInt(document.getElementById('puzzlePlayerScore').value) || 0;
   const botScore = parseInt(document.getElementById('puzzleBotScore').value) || 0;
   const playerCoins = parseInt(document.getElementById('puzzlePlayerCoins').value) || 0;
+  const botCurrency = parseInt(document.getElementById('puzzleBotCurrency').value) || 0;
   const bg = document.getElementById('puzzleBackground').value || 'RRLocation15';
   const p0ProId = parseInt(document.getElementById('puzzleP0ProSelect').value) || 2;
   const p1ProId = parseInt(document.getElementById('puzzleP1ProSelect').value) || 7;
@@ -3814,8 +3820,8 @@ function generatePuzzleSQL() {
     },
     {
       StartingScore: botScore,
-      StartingIncome: 12,
-      StartingCurrency: 0,
+      StartingIncome: botCurrency > 0 ? botCurrency + 1 : 12,
+      StartingCurrency: botCurrency,
       OverrideSuperpowers: true,
       SuperpowerOrder: []
     }
