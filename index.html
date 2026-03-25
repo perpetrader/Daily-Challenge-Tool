@@ -1049,6 +1049,21 @@
     </div>
 
     <div class="control-group">
+      <label>Scenario ID (blank = next available)</label>
+      <input type="text" id="puzzleScenarioId" value="" placeholder="Auto" oninput="updatePuzzleSQL()">
+    </div>
+
+    <div class="control-group">
+      <label>P0 Deck ID (blank = next available)</label>
+      <input type="text" id="puzzleP0DeckId" value="" placeholder="Auto" oninput="updatePuzzleSQL()">
+    </div>
+
+    <div class="control-group">
+      <label>P1 Deck ID (blank = next available)</label>
+      <input type="text" id="puzzleP1DeckId" value="" placeholder="Auto" oninput="updatePuzzleSQL()">
+    </div>
+
+    <div class="control-group">
       <label>Time to Live</label>
       <input type="datetime-local" id="puzzleTtlInput" oninput="updatePuzzleSQL()">
     </div>
@@ -3870,6 +3885,9 @@ function generatePuzzleSQL() {
   const bg = document.getElementById('puzzleBackground').value || 'RRLocation15';
   const p0ProId = parseInt(document.getElementById('puzzleP0ProSelect').value) || 2;
   const p1ProId = parseInt(document.getElementById('puzzleP1ProSelect').value) || 7;
+  const overrideScenarioId = document.getElementById('puzzleScenarioId').value.trim();
+  const overrideP0DeckId = document.getElementById('puzzleP0DeckId').value.trim();
+  const overrideP1DeckId = document.getElementById('puzzleP1DeckId').value.trim();
   const ttlStr = document.getElementById('puzzleTtlInput').value;
   const ttl = ttlStr ? formatDateTimeSQL(new Date(ttlStr)) : formatDateTimeSQL(new Date());
 
@@ -4036,8 +4054,8 @@ function generatePuzzleSQL() {
   }
 
   // Determine deck ID references for the scenario
-  const p0DeckRef = hasCustomP0Deck ? '@p0_deck_id' : '3703';
-  const p1DeckRef = hasCustomP1Deck ? '@p1_deck_id' : '3704';
+  const p0DeckRef = overrideP0DeckId || (hasCustomP0Deck ? '@p0_deck_id' : '3703');
+  const p1DeckRef = overrideP1DeckId || (hasCustomP1Deck ? '@p1_deck_id' : '3704');
 
   const lines = [
     ...solutionLines,
@@ -4055,29 +4073,45 @@ function generatePuzzleSQL() {
   if (hasCustomP0Deck) {
     const p0DeckCards = JSON.stringify(puzzleState.playerDeck);
     lines.push(`-- Player Deck`);
-    lines.push(`INSERT INTO GameData.Deck(Name, Description, Cards, Superpowers, DeckCategoryID, ProfessionalID)`);
-    lines.push(`VALUES('${eName}', 'player', '${p0DeckCards}', '[]', 0, ${p0ProId});`);
-    lines.push(`SET @p0_deck_id = LAST_INSERT_ID();`);
+    if (overrideP0DeckId) {
+      lines.push(`INSERT INTO GameData.Deck(DeckID, Name, Description, Cards, Superpowers, DeckCategoryID, ProfessionalID)`);
+      lines.push(`VALUES(${overrideP0DeckId}, '${eName}', 'player', '${p0DeckCards}', '[]', 0, ${p0ProId});`);
+    } else {
+      lines.push(`INSERT INTO GameData.Deck(Name, Description, Cards, Superpowers, DeckCategoryID, ProfessionalID)`);
+      lines.push(`VALUES('${eName}', 'player', '${p0DeckCards}', '[]', 0, ${p0ProId});`);
+      lines.push(`SET @p0_deck_id = LAST_INSERT_ID();`);
+    }
     lines.push(``);
   }
 
   if (hasCustomP1Deck) {
     const p1DeckCards = JSON.stringify(puzzleState.botDeck);
     lines.push(`-- Bot Deck`);
-    lines.push(`INSERT INTO GameData.Deck(Name, Description, Cards, Superpowers, DeckCategoryID, ProfessionalID)`);
-    lines.push(`VALUES('${eName}', 'bot', '${p1DeckCards}', '[]', 0, ${p1ProId});`);
-    lines.push(`SET @p1_deck_id = LAST_INSERT_ID();`);
+    if (overrideP1DeckId) {
+      lines.push(`INSERT INTO GameData.Deck(DeckID, Name, Description, Cards, Superpowers, DeckCategoryID, ProfessionalID)`);
+      lines.push(`VALUES(${overrideP1DeckId}, '${eName}', 'bot', '${p1DeckCards}', '[]', 0, ${p1ProId});`);
+    } else {
+      lines.push(`INSERT INTO GameData.Deck(Name, Description, Cards, Superpowers, DeckCategoryID, ProfessionalID)`);
+      lines.push(`VALUES('${eName}', 'bot', '${p1DeckCards}', '[]', 0, ${p1ProId});`);
+      lines.push(`SET @p1_deck_id = LAST_INSERT_ID();`);
+    }
     lines.push(``);
   }
 
   lines.push(`-- Scenario`);
-  lines.push(`INSERT INTO GameData.Scenario(Active, Name, Description, Hint, MapId, MirrorMatch, TeamBuilderDeckID, P0ProfessionalID, P1ProfessionalID, P0DeckID, P0DeckCategoryID, P1DeckID, P1DeckCategoryID, Settings, StartingCards)`);
-  lines.push(`VALUES(1, '${eName}', '${eDesc}', NULL, ${mapId}, 0, 0, ${p0ProId}, ${p1ProId}, ${p0DeckRef}, 0, ${p1DeckRef}, 0, '${eSettings}', '${eStartingCards}');`);
-  lines.push(`SET @scenario_id = LAST_INSERT_ID();`);
+  if (overrideScenarioId) {
+    lines.push(`INSERT INTO GameData.Scenario(ScenarioID, Active, Name, Description, Hint, MapId, MirrorMatch, TeamBuilderDeckID, P0ProfessionalID, P1ProfessionalID, P0DeckID, P0DeckCategoryID, P1DeckID, P1DeckCategoryID, Settings, StartingCards)`);
+    lines.push(`VALUES(${overrideScenarioId}, 1, '${eName}', '${eDesc}', NULL, ${mapId}, 0, 0, ${p0ProId}, ${p1ProId}, ${p0DeckRef}, 0, ${p1DeckRef}, 0, '${eSettings}', '${eStartingCards}');`);
+  } else {
+    lines.push(`INSERT INTO GameData.Scenario(Active, Name, Description, Hint, MapId, MirrorMatch, TeamBuilderDeckID, P0ProfessionalID, P1ProfessionalID, P0DeckID, P0DeckCategoryID, P1DeckID, P1DeckCategoryID, Settings, StartingCards)`);
+    lines.push(`VALUES(1, '${eName}', '${eDesc}', NULL, ${mapId}, 0, 0, ${p0ProId}, ${p1ProId}, ${p0DeckRef}, 0, ${p1DeckRef}, 0, '${eSettings}', '${eStartingCards}');`);
+    lines.push(`SET @scenario_id = LAST_INSERT_ID();`);
+  }
+  const scenarioRef = overrideScenarioId || '@scenario_id';
   lines.push(``);
   lines.push(`-- Daily Challenge`);
   lines.push(`INSERT INTO GameData.DailyChallenge(TimeToLive, Active, Title, Body, AssetKeyArt, ScenarioID)`);
-  lines.push(`VALUES('${ttl}', 1, '${eName}', '${eBody}', '${eArt}', @scenario_id);`);
+  lines.push(`VALUES('${ttl}', 1, '${eName}', '${eBody}', '${eArt}', ${scenarioRef});`);
   lines.push(``);
 
   return lines.join('\n');
